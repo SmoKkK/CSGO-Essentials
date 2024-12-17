@@ -2,7 +2,6 @@
 A comprehensive server management plugin for Counter-Strike: Global Offensive.
 
 ## Features
-* Anti-cheat protections:
   * Block fake duck
   * Force lag compensation
   * Block untrusted angles
@@ -11,10 +10,6 @@ A comprehensive server management plugin for Counter-Strike: Global Offensive.
   * Detect and prevent air stuck exploits
   * Normalize angles
   * Latency management
-
-## Customization
-* All features can be configured via ConVars
-* Easily toggle specific protections on/off
 
 ## ConVar Configuration
 ```sourcepawn
@@ -31,7 +26,6 @@ sm_essentials_max_latency 200       // Maximum allowed latency (ms)
 ## Requirements
 * SourceMod 1.11 or higher
 * Counter-Strike: Global Offensive
-* Recommended: Latest game update compatibility
 
 ## Installation
 1. Ensure SourceMod is installed
