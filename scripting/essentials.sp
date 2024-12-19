@@ -227,7 +227,7 @@ void CheckAX(int client)
 
 	if (GetEntData(client, 0xCD8, 1) == 0)
 	{
-		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1");
+		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1\x08. We have forced it for you! ");
 		ChangeClientTeam(client, CS_TEAM_SPECTATOR);
 
 		char player_name[MAX_NAME_LENGTH];
