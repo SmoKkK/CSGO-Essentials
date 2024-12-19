@@ -17,6 +17,7 @@ ConVar g_cvMaxLatencyWarnings;
 
 int g_iLatencyWarnings[MAXPLAYERS + 1] = { 0, ... };
 float g_flLastLatencyWarningTime[MAXPLAYERS + 1] = { 0.0, ... };
+float g_flLastUntrustedAnglesWarningTime[MAXPLAYERS + 1] = { 0.0, ... };	// ignore the long name
 
 #define CS_TEAM_NONE	  0
 #define CS_TEAM_SPECTATOR 1
@@ -34,49 +35,47 @@ stock bool clamp(float &value, float min, float max)
 
 enum struct Vec3
 {
-    float x;
-    float y;
-    float z;
+	float x;
+	float y;
+	float z;
 
-    void From(const float array[3])
-    {
-        this.x = array[0];
-        this.y = array[1];
-        this.z = array[2];
-    }
+	void From(const float array[3]){
+		this.x = array[0];
+		this.y = array[1];
+		this.z = array[2]; }
 
-    void To(float array[3])
-    {
-        array[0] = this.x;
-        array[1] = this.y;
-        array[2] = this.z;
-    }
+void To(float array[3])
+{
+	array[0] = this.x;
+	array[1] = this.y;
+	array[2] = this.z;
+}
 
-    void Set(float x, float y, float z)
-    {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
+void Set(float x, float y, float z)
+{
+	this.x = x;
+	this.y = y;
+	this.z = z;
+}
 
-    bool Equals(const Vec3 other)
-    {
-        return this.x == other.x && this.y == other.y && this.z == other.z;
-    }
+bool Equals(const Vec3 other)
+{
+	return this.x == other.x && this.y == other.y && this.z == other.z;
+}
 
-    void Clamp(float min, float max)
-    {
-        clamp(this.x, min, max);
-        clamp(this.y, min, max);
-        clamp(this.z, min, max);
-    }
+void Clamp(float min, float max)
+{
+	clamp(this.x, min, max);
+	clamp(this.y, min, max);
+	clamp(this.z, min, max);
+}
 
-    void Reset()
-    {
-        this.x = 0.0;
-        this.y = 0.0;
-        this.z = 0.0;
-    }
+void Reset()
+{
+	this.x = 0.0;
+	this.y = 0.0;
+	this.z = 0.0;
+}
 }
 
 ArrayList g_LagRecords;
@@ -228,14 +227,14 @@ void CheckAX(int client)
 
 	if (GetEntData(client, 0xCD8, 1) == 0)
 	{
-		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1 \x08and \x09cl_predict 0");
+		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1");
 		ChangeClientTeam(client, CS_TEAM_SPECTATOR);
 
 		char player_name[MAX_NAME_LENGTH];
 		GetClientName(client, player_name, sizeof(player_name));
-		PrintToChatAll(" \x09Warning! \x08%s \x09has been moved to spectators \x08because they tried to use \x09anti-exploit", player_name);
+		PrintToChatAll(" \x09Warning! \x09%s \x08has been moved to spectators because they tried to use \x09anti-exploit", player_name);
 
-		LogMessage("Client %d has been moved to spectators because they tried to use anti-exploit", client);
+		LogMessage("Client %s has been moved to spectators because they tried to use anti-exploit", player_name);
 	}
 
 	SetEntProp(client, Prop_Data, "m_bLagCompensation", 1);
@@ -245,6 +244,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float veloc
 {
 	if (!IsValidClient(client) || !IsPlayerAlive(client))
 		return Plugin_Continue;
+
+	char player_name[MAX_NAME_LENGTH];
+	GetClientName(client, player_name, sizeof(player_name));
 
 	Vec3 vec, vel;
 	vec.From(angles);
@@ -265,8 +267,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float veloc
 
 		if (c1 || c2 || c3)
 		{
-			PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09untrusted angles\x08, please stop using them to avoid issues.");
-			LogMessage("Client %d has been detected using untrusted angles", client);
+			float currentTime = GetGameTime();
+			if (currentTime - g_flLastUntrustedAnglesWarningTime[client] >= 5.0)
+			{
+				PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09untrusted angles\x08, please stop using them to avoid issues.");
+				LogMessage("Client %s has been detected using untrusted angles", player_name);
+				g_flLastUntrustedAnglesWarningTime[client] = currentTime;
+			}
 		}
 
 		vec.To(angles);
@@ -296,7 +303,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float veloc
 			if (currentTime - messages[client] >= 5.0)
 			{
 				PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09roll angles\x08, please stop using them to avoid issues. (\x09%i°\x08)", RoundToNearest(bk));
-				LogMessage("Client %d has been detected using roll angles (%i°)", client, RoundToNearest(bk));
+				LogMessage("Client %s has been detected using roll angles (%i°)", player_name, RoundToNearest(bk));
 				messages[client] = currentTime;
 			}
 		}
@@ -311,7 +318,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float veloc
 			PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09air stuck\x08, you have been \x09slayed\x08.");
 			ForcePlayerSuicide(client);
 
-			LogMessage("Client %d has been detected using air stuck", client);
+			LogMessage("Client %s has been detected using air stuck", player_name);
 		}
 
 	return Plugin_Changed;
@@ -331,9 +338,10 @@ public void LagCompensation(QueryCookie cookie, int client, ConVarQueryResult re
 	if (GetClientTeam(client) == CS_TEAM_NONE)
 		return;
 
+	PrintToServer("Client %d has cl_lagcompensation set to %s", client, cvarValue);
 	if (StringToInt(cvarValue) == 0)
 	{
-		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1 \x08and \x09cl_predict 0");
+		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1");
 		ChangeClientTeam(client, CS_TEAM_SPECTATOR);
 	}
 }
@@ -348,12 +356,14 @@ public void OnClientConnected(int client)
 {
 	g_iLatencyWarnings[client] = 0;
 	g_flLastLatencyWarningTime[client] = 0.0;
+	g_flLastUntrustedAnglesWarningTime[client] = 0.0;
 }
 
 public void OnClientDisconnect(int client)
 {
 	g_iLatencyWarnings[client] = 0;
 	g_flLastLatencyWarningTime[client] = 0.0;
+	g_flLastUntrustedAnglesWarningTime[client] = 0.0;
 }
 
 float GetShotTime(int client)
