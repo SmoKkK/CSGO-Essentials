@@ -34,47 +34,49 @@ stock bool clamp(float &value, float min, float max)
 
 enum struct Vec3
 {
-	float x;
-	float y;
-	float z;
+    float x;
+    float y;
+    float z;
 
-	void From(const float array[3]){
-		this.x = array[0];
-		this.y = array[1];
-		this.z = array[2]; }
+    void From(const float array[3])
+    {
+        this.x = array[0];
+        this.y = array[1];
+        this.z = array[2];
+    }
 
-void To(float array[3])
-{
-	array[0] = this.x;
-	array[1] = this.y;
-	array[2] = this.z;
-}
+    void To(float array[3])
+    {
+        array[0] = this.x;
+        array[1] = this.y;
+        array[2] = this.z;
+    }
 
-void Set(float x, float y, float z)
-{
-	this.x = x;
-	this.y = y;
-	this.z = z;
-}
+    void Set(float x, float y, float z)
+    {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
 
-bool Equals(const Vec3 other)
-{
-	return this.x == other.x && this.y == other.y && this.z == other.z;
-}
+    bool Equals(const Vec3 other)
+    {
+        return this.x == other.x && this.y == other.y && this.z == other.z;
+    }
 
-void Clamp(float min, float max)
-{
-	clamp(this.x, min, max);
-	clamp(this.y, min, max);
-	clamp(this.z, min, max);
-}
+    void Clamp(float min, float max)
+    {
+        clamp(this.x, min, max);
+        clamp(this.y, min, max);
+        clamp(this.z, min, max);
+    }
 
-void Reset()
-{
-	this.x = 0.0;
-	this.y = 0.0;
-	this.z = 0.0;
-}
+    void Reset()
+    {
+        this.x = 0.0;
+        this.y = 0.0;
+        this.z = 0.0;
+    }
 }
 
 ArrayList g_LagRecords;
@@ -142,14 +144,16 @@ public Action CheckClientLatency(Handle timer)
 			if (currentTime - g_flLastLatencyWarningTime[client] >= 5.0)
 			{
 				g_iLatencyWarnings[client]++;
-				PrintToChat(client, " \x09Warning! \x08Your latency is too high: \x09%d ms \x08(Max: \x09%d ms\x08)",
+				PrintToChat(client, " \x09Warning! \x08Your latency is too high: \x09%d ms \x08(max: \x09%d ms\x08)",
 							latency, g_cvMaxLatency.IntValue);
+				LogMessage("Client %d has high latency: %d ms (max: %d ms)", client, latency, g_cvMaxLatency.IntValue);
 
 				g_flLastLatencyWarningTime[client] = currentTime;
 				if (g_iLatencyWarnings[client] >= g_cvMaxLatencyWarnings.IntValue)
 				{
-					PrintToChat(client, " \x09Warning! \x08You have been \x09moved to spectators \x08due to high latency.");
+					PrintToChat(client, " \x09Warning! \x08You have been \x09moved to spectators \x08due to \x09high latency\x08.");
 					ChangeClientTeam(client, CS_TEAM_SPECTATOR);
+					LogMessage("Client %d has been moved to spectators due to high latency", client);
 					g_iLatencyWarnings[client] = 0;
 				}
 			}
@@ -226,10 +230,12 @@ void CheckAX(int client)
 	{
 		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1 \x08and \x09cl_predict 0");
 		ChangeClientTeam(client, CS_TEAM_SPECTATOR);
-		
+
 		char player_name[MAX_NAME_LENGTH];
 		GetClientName(client, player_name, sizeof(player_name));
 		PrintToChatAll(" \x09Warning! \x08%s \x09has been moved to spectators \x08because they tried to use \x09anti-exploit", player_name);
+
+		LogMessage("Client %d has been moved to spectators because they tried to use anti-exploit", client);
 	}
 
 	SetEntProp(client, Prop_Data, "m_bLagCompensation", 1);
@@ -258,7 +264,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float veloc
 		bool c3 = clamp(vec.z, -90.0, 90.0);
 
 		if (c1 || c2 || c3)
+		{
 			PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09untrusted angles\x08, please stop using them to avoid issues.");
+			LogMessage("Client %d has been detected using untrusted angles", client);
+		}
 
 		vec.To(angles);
 	}
@@ -287,6 +296,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float veloc
 			if (currentTime - messages[client] >= 5.0)
 			{
 				PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09roll angles\x08, please stop using them to avoid issues. (\x09%i°\x08)", RoundToNearest(bk));
+				LogMessage("Client %d has been detected using roll angles (%i°)", client, RoundToNearest(bk));
 				messages[client] = currentTime;
 			}
 		}
@@ -300,6 +310,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float veloc
 		{
 			PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09air stuck\x08, you have been \x09slayed\x08.");
 			ForcePlayerSuicide(client);
+
+			LogMessage("Client %d has been detected using air stuck", client);
 		}
 
 	return Plugin_Changed;
