@@ -2,11 +2,11 @@
 A comprehensive server management plugin for Counter-Strike: Global Offensive.
 
 ## Features
-  * Block fake duck
-  * Force lag compensation
+  * Block Fake-Duck
+  * Force Lag Compensation 0 (aka disable AX)
   * Block untrusted angles
   * Block roll angles
-  * Prevent lag peeking
+  * Block Lag Peek
   * Detect and prevent air stuck exploits
   * Normalize angles
   * Latency management
