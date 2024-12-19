@@ -34,49 +34,47 @@ stock bool clamp(float &value, float min, float max)
 
 enum struct Vec3
 {
-    float x;
-    float y;
-    float z;
+	float x;
+	float y;
+	float z;
 
-    void From(const float array[3])
-    {
-        this.x = array[0];
-        this.y = array[1];
-        this.z = array[2];
-    }
+	void From(const float array[3]){
+		this.x = array[0];
+		this.y = array[1];
+		this.z = array[2]; }
 
-    void To(float array[3])
-    {
-        array[0] = this.x;
-        array[1] = this.y;
-        array[2] = this.z;
-    }
+void To(float array[3])
+{
+	array[0] = this.x;
+	array[1] = this.y;
+	array[2] = this.z;
+}
 
-    void Set(float x, float y, float z)
-    {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
+void Set(float x, float y, float z)
+{
+	this.x = x;
+	this.y = y;
+	this.z = z;
+}
 
-    bool Equals(const Vec3 other)
-    {
-        return this.x == other.x && this.y == other.y && this.z == other.z;
-    }
+bool Equals(const Vec3 other)
+{
+	return this.x == other.x && this.y == other.y && this.z == other.z;
+}
 
-    void Clamp(float min, float max)
-    {
-		clamp(this.x, min, max);
-		clamp(this.y, min, max);
-		clamp(this.z, min, max);
-    }
+void Clamp(float min, float max)
+{
+	clamp(this.x, min, max);
+	clamp(this.y, min, max);
+	clamp(this.z, min, max);
+}
 
-    void Reset()
-    {
-        this.x = 0.0;
-        this.y = 0.0;
-        this.z = 0.0;
-    }
+void Reset()
+{
+	this.x = 0.0;
+	this.y = 0.0;
+	this.z = 0.0;
+}
 }
 
 ArrayList g_LagRecords;
@@ -103,6 +101,7 @@ public Plugin myinfo =
 };
 
 int g_flSimulationTimeOffset = -1;
+
 public void OnPluginStart()
 {
 	g_cvBlockFakeDuck = CreateConVar("sm_essentials_fd", "0", "Stop people from using fake-duck.", FCVAR_PROTECTED, true, 0.0, true, 1.0);
@@ -227,6 +226,10 @@ void CheckAX(int client)
 	{
 		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1 \x08and \x09cl_predict 0");
 		ChangeClientTeam(client, CS_TEAM_SPECTATOR);
+		
+		char player_name[MAX_NAME_LENGTH];
+		GetClientName(client, player_name, sizeof(player_name));
+		PrintToChatAll(" \x09Warning! \x08%s \x09has been moved to spectators \x08because they tried to use \x09anti-exploit", player_name);
 	}
 
 	SetEntProp(client, Prop_Data, "m_bLagCompensation", 1);
