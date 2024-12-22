@@ -225,7 +225,8 @@ void CheckAX(int client)
 	if (!IsPlayerAlive(client) || GetClientTeam(client) == CS_TEAM_NONE || GetClientTeam(client) == CS_TEAM_SPECTATOR)
 		return;
 
-	if (GetEntData(client, 0xCD8, 1) == 0)
+	int lag_comp = GetEntProp(client, Prop_Data, "m_bLagCompensation");
+	if (lag_comp == 0)
 	{
 		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1\x08. We have forced it for you! ");
 		ChangeClientTeam(client, CS_TEAM_SPECTATOR);
@@ -338,7 +339,7 @@ public void LagCompensation(QueryCookie cookie, int client, ConVarQueryResult re
 	if (GetClientTeam(client) == CS_TEAM_NONE)
 		return;
 
-	PrintToServer("Client %d has cl_lagcompensation set to %s", client, cvarValue);
+	PrintToServer("Client %d has cl_lagcompensation set to %d", client, StringToInt(cvarValue));
 	if (StringToInt(cvarValue) == 0)
 	{
 		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1");
