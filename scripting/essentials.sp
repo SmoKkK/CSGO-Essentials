@@ -339,7 +339,6 @@ public void LagCompensation(QueryCookie cookie, int client, ConVarQueryResult re
 	if (GetClientTeam(client) == CS_TEAM_NONE)
 		return;
 
-	PrintToServer("Client %d has cl_lagcompensation set to %d", client, StringToInt(cvarValue));
 	if (StringToInt(cvarValue) == 0)
 	{
 		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1");
