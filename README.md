@@ -17,7 +17,7 @@ sm_essentials_fd 0                  // Block fake duck
 sm_essentials_ax 1                  // Move to spectators and force lagcomp
 sm_essentials_unstrusted_angles 1   // Block untrusted angles
 sm_essentials_roll 1                // Block roll angles
-sm_essentials_lag_peek 1            // Block lag peek
+sm_essentials_lag_peek 0            // Block lag peek
 sm_essentials_airstuck 1            // Block air stuck
 sm_essentials_normalize_angles 1    // Normalize angles
 sm_essentials_max_latency 200       // Maximum allowed latency (ms)
