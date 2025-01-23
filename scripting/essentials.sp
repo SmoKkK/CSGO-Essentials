@@ -15,7 +15,7 @@
  *
  * My discord: dragos112
  * Website: https://alyx.ro/
- * Repository: https://github.com/hiraeeth/CSGO-Essentials
+ * Repository: https://github.com/Alyx-Network/CSGO-Essentials
  *
  */
 
