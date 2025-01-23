@@ -1,10 +1,37 @@
+/**
+ *
+ * Alyx Network - CS:GO Essentials
+ * A comprehensive server management plugin for Counter-Strike: Global Offensive.
+ *
+ * Features:
+ * - Block Fake-Duck
+ * - Force Lag Compensation 0 (also known as disable AX)
+ * - Block Untrusted Angles
+ * - Block Roll Angles
+ * - Block Lag Peek
+ * - Prevent Air Stuck
+ * - Normalize Angles
+ * - Latency management
+ *
+ * My discord: dragos112
+ * Website: https://alyx.ro/
+ * Repository: https://github.com/hiraeeth/CSGO-Essentials
+ *
+ */
+
 #include <sourcemod>
 #include <cstrike>
 #include <sdktools_gamerules>
 #include <sdktools>
 
-#define VERSION			   "1.5.0"
+#define VERSION "1.5.0"
 #define MAX_ANGLES_WARNING 5
+
+#define CS_TEAM_NONE	   0
+#define CS_TEAM_SPECTATOR  1
+#define CS_TEAM_T		   2
+#define CS_TEAM_CT		   3
+
 
 ConVar g_cvBlockFakeDuck;
 ConVar g_cvBlockAX;
@@ -26,11 +53,6 @@ float g_flLastAngleWarningTime[MAXPLAYERS + 1][3];
 int WarningType_UNTRUSTED_ANGLES = 1;
 int WarningType_ROLL_ANGLES = 2;
 
-#define CS_TEAM_NONE	  0
-#define CS_TEAM_SPECTATOR 1
-#define CS_TEAM_T		  2
-#define CS_TEAM_CT		  3
-
 stock bool clamp(float &value, float min, float max)
 {
 	float bk = value;
@@ -51,38 +73,38 @@ enum struct Vec3
 		this.y = array[1];
 		this.z = array[2]; }
 
-void To(float array[3])
-{
-	array[0] = this.x;
-	array[1] = this.y;
-	array[2] = this.z;
-}
+	void To(float array[3])
+	{
+		array[0] = this.x;
+		array[1] = this.y;
+		array[2] = this.z;
+	}
 
-void Set(float x, float y, float z)
-{
-	this.x = x;
-	this.y = y;
-	this.z = z;
-}
+	void Set(float x, float y, float z)
+	{
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
 
-bool Equals(const Vec3 other)
-{
-	return this.x == other.x && this.y == other.y && this.z == other.z;
-}
+	bool Equals(const Vec3 other)
+	{
+		return this.x == other.x && this.y == other.y && this.z == other.z;
+	}
 
-void Clamp(float min, float max)
-{
-	clamp(this.x, min, max);
-	clamp(this.y, min, max);
-	clamp(this.z, min, max);
-}
+	void Clamp(float min, float max)
+	{
+		clamp(this.x, min, max);
+		clamp(this.y, min, max);
+		clamp(this.z, min, max);
+	}
 
-void Reset()
-{
-	this.x = 0.0;
-	this.y = 0.0;
-	this.z = 0.0;
-}
+	void Reset()
+	{
+		this.x = 0.0;
+		this.y = 0.0;
+		this.z = 0.0;
+	}
 }
 
 ArrayList g_LagRecords;
