@@ -3,7 +3,8 @@
 #include <sdktools_gamerules>
 #include <sdktools>
 
-#define VERSION "1.5.0"
+#define VERSION			   "1.5.0"
+#define MAX_ANGLES_WARNING 5
 
 ConVar g_cvBlockFakeDuck;
 ConVar g_cvBlockAX;
@@ -18,6 +19,12 @@ ConVar g_cvMaxLatencyWarnings;
 int g_iLatencyWarnings[MAXPLAYERS + 1] = { 0, ... };
 float g_flLastLatencyWarningTime[MAXPLAYERS + 1] = { 0.0, ... };
 float g_flLastUntrustedAnglesWarningTime[MAXPLAYERS + 1] = { 0.0, ... };	// ignore the long name
+
+int g_iAngleWarnings[MAXPLAYERS + 1][3];
+float g_flLastAngleWarningTime[MAXPLAYERS + 1][3];
+
+int WarningType_UNTRUSTED_ANGLES = 1;
+int WarningType_ROLL_ANGLES = 2;
 
 #define CS_TEAM_NONE	  0
 #define CS_TEAM_SPECTATOR 1
@@ -253,76 +260,137 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float veloc
 	vec.From(angles);
 	vel.From(velocity);
 
+	bool modified = false;
+
+	modified |= BlockAX(client);
+	modified |= BlockFakeDuck(buttons);
+	modified |= BlockUntrustedAngles(client, vec, angles);
+	modified |= NormalizeAngles(vec, angles);
+	modified |= BlockRollAngles(client, vec, angles);
+	modified |= BlockLagPeek(client);
+	modified |= BlockAirStuck(client, vel, buttons, tickcount);
+
+	return modified ? Plugin_Changed : Plugin_Continue;
+}
+
+bool BlockAX(int client)
+{
 	if (g_cvBlockAX.BoolValue)
 		CheckAX(client);
+	return false;
+}
 
-	if (g_cvBlockFakeDuck.BoolValue)
-		if (buttons & IN_BULLRUSH)
-			buttons &= ~IN_BULLRUSH;
-
-	if (g_cvBlockUntrustedAngles.BoolValue)
+bool BlockFakeDuck(int &buttons)
+{
+	if (g_cvBlockFakeDuck.BoolValue && buttons & IN_BULLRUSH)
 	{
-		bool c1 = clamp(vec.x, -89.0, 89.0);
-		bool c2 = clamp(vec.y, -180.0, 180.0);
-		bool c3 = clamp(vec.z, -90.0, 90.0);
+		buttons &= ~IN_BULLRUSH;
+		return true;
+	}
+	return false;
+}
 
-		if (c1 || c2 || c3)
+bool BlockUntrustedAngles(int client, Vec3 vec, float angles[3])
+{
+	if (!g_cvBlockUntrustedAngles.BoolValue)
+		return false;
+
+	bool c1 = clamp(vec.x, -89.0, 89.0);
+	bool c2 = clamp(vec.y, -180.0, 180.0);
+	bool c3 = clamp(vec.z, -90.0, 90.0);
+
+	if (c1 || c2 || c3)
+	{
+		float currentTime = GetGameTime();
+		g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES]++;
+		if (currentTime - g_flLastAngleWarningTime[client][WarningType_UNTRUSTED_ANGLES] >= 5.0)
 		{
-			float currentTime = GetGameTime();
-			if (currentTime - g_flLastUntrustedAnglesWarningTime[client] >= 5.0)
+			char player_name[MAX_NAME_LENGTH];
+			GetClientName(client, player_name, sizeof(player_name));
+
+			if (g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES] > MAX_ANGLES_WARNING)
 			{
-				PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09untrusted angles\x08, please stop using them to avoid issues.");
-				LogMessage("Client %s has been detected using untrusted angles", player_name);
-				g_flLastUntrustedAnglesWarningTime[client] = currentTime;
+				PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09untrusted angles\x08, please stop using them to avoid issues.",
+							g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES]);
+				LogMessage("Client %s has been detected using untrusted angles", player_name,
+						   g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES]);
+				g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES] = 0;
 			}
+			g_flLastAngleWarningTime[client][WarningType_UNTRUSTED_ANGLES] = currentTime;
 		}
 
 		vec.To(angles);
+		return true;
 	}
 
-	if (g_cvNormalizeAngles.BoolValue)
-		if (vec.y > 180.0 || vec.y < -180.0)
-		{
-			float r = vec.y / 360.0;
-			int revs = RoundToFloor(FloatAbs(r));
+	return false;
+}
 
-			vec.y = (vec.y > 0.0) ? (vec.y - revs * 360.0) : (vec.y + revs * 360.0);
-			vec.To(angles);
-		}
+bool NormalizeAngles(Vec3 vec, float angles[3])
+{
+	if (!g_cvNormalizeAngles.BoolValue || (vec.y <= 180.0 && vec.y >= -180.0))
+		return false;
 
-	if (g_cvBlockRollAngles.BoolValue)
+	float r = vec.y / 360.0;
+	int revs = RoundToFloor(FloatAbs(r));
+
+	vec.y = (vec.y > 0.0) ? (vec.y - revs * 360.0) : (vec.y + revs * 360.0);
+	vec.To(angles);
+
+	return true;
+}
+
+bool BlockRollAngles(int client, Vec3 vec, float angles[3])
+{
+	if (!g_cvBlockRollAngles.BoolValue || vec.z == 0.0)
+		return false;
+
+	float bk = vec.z;
+	vec.z = 0.0;
+	vec.To(angles);
+
+	float currentTime = GetGameTime();
+	g_iAngleWarnings[client][WarningType_ROLL_ANGLES]++;
+	if (currentTime - g_flLastAngleWarningTime[client][WarningType_ROLL_ANGLES] >= 5.0)
 	{
-		static float messages[MAXPLAYERS + 1] = { 0.0, ... };
+		char player_name[MAX_NAME_LENGTH];
+		GetClientName(client, player_name, sizeof(player_name));
 
-		float bk = vec.z;
-		if (vec.z != 0.0)
+		if (g_iAngleWarnings[client][WarningType_ROLL_ANGLES] > MAX_ANGLES_WARNING)
 		{
-			vec.z = 0.0;
-			vec.To(angles);
-
-			float currentTime = GetGameTime();
-			if (currentTime - messages[client] >= 5.0)
-			{
-				PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09roll angles\x08, please stop using them to avoid issues. (\x09%i°\x08)", RoundToNearest(bk));
-				LogMessage("Client %s has been detected using roll angles (%i°)", player_name, RoundToNearest(bk));
-				messages[client] = currentTime;
-			}
+			PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09roll angles\x08, please stop using them. (\x09%i°\x08)",
+						g_iAngleWarnings[client][WarningType_ROLL_ANGLES], RoundToNearest(bk));
+			LogMessage("Client %s has been detected using roll angles (%i°)",
+					   player_name, RoundToNearest(bk), g_iAngleWarnings[client][WarningType_ROLL_ANGLES]);
+			g_iAngleWarnings[client][WarningType_ROLL_ANGLES] = 0;
 		}
+		g_flLastAngleWarningTime[client][WarningType_ROLL_ANGLES] = currentTime;
 	}
 
+	return true;
+}
+
+bool BlockLagPeek(int client)
+{
 	if (g_cvBlockLagPeek.BoolValue)
 		RecordDataIntoTrack(client);
 
-	if (g_cvBlockAirStuck.BoolValue)
-		if (tickcount == 0 && vel.x == 0.0 && vel.y == 0.0 && vel.z == 0.0 && !(buttons & IN_ATTACK))
-		{
-			PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09air stuck\x08, you have been \x09slayed\x08.");
-			ForcePlayerSuicide(client);
+	return false;
+}
 
-			LogMessage("Client %s has been detected using air stuck", player_name);
-		}
+bool BlockAirStuck(int client, Vec3 vel, int &buttons, int tickcount)
+{
+	if (!g_cvBlockAirStuck.BoolValue || !(tickcount == 0 && vel.x == 0.0 && vel.y == 0.0 && vel.z == 0.0 && !(buttons & IN_ATTACK)))
+		return false;
 
-	return Plugin_Changed;
+	char player_name[MAX_NAME_LENGTH];
+	GetClientName(client, player_name, sizeof(player_name));
+
+	PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09air stuck\x08, you have been \x09slayed\x08.");
+	ForcePlayerSuicide(client);
+	LogMessage("Client %s has been detected using air stuck", player_name);
+
+	return true;
 }
 
 public Action PlayerSpawn(Event event, const char[] name, bool broadcast)
@@ -357,6 +425,10 @@ public void OnClientConnected(int client)
 	g_iLatencyWarnings[client] = 0;
 	g_flLastLatencyWarningTime[client] = 0.0;
 	g_flLastUntrustedAnglesWarningTime[client] = 0.0;
+	g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES] = 0;
+	g_iAngleWarnings[client][WarningType_ROLL_ANGLES] = 0;
+	g_flLastAngleWarningTime[client][WarningType_UNTRUSTED_ANGLES] = 0.0;
+	g_flLastAngleWarningTime[client][WarningType_ROLL_ANGLES] = 0.0;
 }
 
 public void OnClientDisconnect(int client)
@@ -364,6 +436,10 @@ public void OnClientDisconnect(int client)
 	g_iLatencyWarnings[client] = 0;
 	g_flLastLatencyWarningTime[client] = 0.0;
 	g_flLastUntrustedAnglesWarningTime[client] = 0.0;
+	g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES] = 0;
+	g_iAngleWarnings[client][WarningType_ROLL_ANGLES] = 0;
+	g_flLastAngleWarningTime[client][WarningType_UNTRUSTED_ANGLES] = 0.0;
+	g_flLastAngleWarningTime[client][WarningType_ROLL_ANGLES] = 0.0;
 }
 
 float GetShotTime(int client)
