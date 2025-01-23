@@ -35,3 +35,5 @@ sm_essentials_max_latency 200       // Maximum allowed latency (ms)
 ## Notes
 * Plugin version: 1.5.0
 * Authors: dragos112 & unknowncheats & other developers
+
+## You can test this plugin on our servers! Take a look: alyx.ro/servers
