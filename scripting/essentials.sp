@@ -15,7 +15,7 @@
  *
  * My discord: dragos112
  * Website: https://alyx.ro/
- * Repository: https://github.com/Alyx-Network/CSGO-Essentials
+ * Repository: https://github.com/hiraeeth/CSGO-Essentials
  *
  */
 
@@ -24,7 +24,7 @@
 #include <sdktools_gamerules>
 #include <sdktools>
 
-#define VERSION "1.5.0"
+#define VERSION			   "1.8.0"
 #define MAX_ANGLES_WARNING 5
 
 #define CS_TEAM_NONE	   0
@@ -32,16 +32,24 @@
 #define CS_TEAM_T		   2
 #define CS_TEAM_CT		   3
 
-
-ConVar g_cvBlockFakeDuck;
 ConVar g_cvBlockAX;
+ConVar g_cvWarnAX;
+
 ConVar g_cvBlockUntrustedAngles;
+ConVar g_cvWarnUntrustedAngles;
+
 ConVar g_cvBlockRollAngles;
-ConVar g_cvBlockLagPeek;
+ConVar g_cvWarnRollAngles;
+
 ConVar g_cvBlockAirStuck;
-ConVar g_cvNormalizeAngles;
+ConVar g_cvWarnAirStuck;
+
 ConVar g_cvMaxLatency;
 ConVar g_cvMaxLatencyWarnings;
+
+ConVar g_cvBlockFakeDuck;
+ConVar g_cvBlockLagPeek;
+ConVar g_cvNormalizeAngles;
 
 int g_iLatencyWarnings[MAXPLAYERS + 1] = { 0, ... };
 float g_flLastLatencyWarningTime[MAXPLAYERS + 1] = { 0.0, ... };
@@ -73,38 +81,38 @@ enum struct Vec3
 		this.y = array[1];
 		this.z = array[2]; }
 
-	void To(float array[3])
-	{
-		array[0] = this.x;
-		array[1] = this.y;
-		array[2] = this.z;
-	}
+void To(float array[3])
+{
+	array[0] = this.x;
+	array[1] = this.y;
+	array[2] = this.z;
+}
 
-	void Set(float x, float y, float z)
-	{
-		this.x = x;
-		this.y = y;
-		this.z = z;
-	}
+void Set(float x, float y, float z)
+{
+	this.x = x;
+	this.y = y;
+	this.z = z;
+}
 
-	bool Equals(const Vec3 other)
-	{
-		return this.x == other.x && this.y == other.y && this.z == other.z;
-	}
+bool Equals(const Vec3 other)
+{
+	return this.x == other.x && this.y == other.y && this.z == other.z;
+}
 
-	void Clamp(float min, float max)
-	{
-		clamp(this.x, min, max);
-		clamp(this.y, min, max);
-		clamp(this.z, min, max);
-	}
+void Clamp(float min, float max)
+{
+	clamp(this.x, min, max);
+	clamp(this.y, min, max);
+	clamp(this.z, min, max);
+}
 
-	void Reset()
-	{
-		this.x = 0.0;
-		this.y = 0.0;
-		this.z = 0.0;
-	}
+void Reset()
+{
+	this.x = 0.0;
+	this.y = 0.0;
+	this.z = 0.0;
+}
 }
 
 ArrayList g_LagRecords;
@@ -134,13 +142,21 @@ int g_flSimulationTimeOffset = -1;
 
 public void OnPluginStart()
 {
-	g_cvBlockFakeDuck = CreateConVar("sm_essentials_fd", "0", "Stop people from using fake-duck.", FCVAR_PROTECTED, true, 0.0, true, 1.0);
 	g_cvBlockAX = CreateConVar("sm_essentials_ax", "1", "Move to spectators and force lagcomp on every client.", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+	g_cvWarnAX = CreateConVar("sm_essentials_warn_ax", "1", "Warn players about AX", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+
 	g_cvBlockUntrustedAngles = CreateConVar("sm_essentials_unstrusted_angles", "1", "Block untrusted angles", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+	g_cvWarnUntrustedAngles = CreateConVar("sm_essentials_unstrusted_angles_warn", "1", "Warn players about untrusted angles", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+
 	g_cvBlockRollAngles = CreateConVar("sm_essentials_roll", "1", "Block roll angles", FCVAR_PROTECTED, true, 0.0, true, 1.0);
-	g_cvBlockLagPeek = CreateConVar("sm_essentials_lag_peek", "0", "Block lag peek", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+	g_cvWarnRollAngles = CreateConVar("sm_essentials_roll_warn", "0", "Warn players about roll angles", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+
 	g_cvBlockAirStuck = CreateConVar("sm_essentials_airstuck", "1", "Block air stuck", FCVAR_PROTECTED, true, 0.0, true, 1.0);
-	g_cvNormalizeAngles = CreateConVar("sm_essentials_normalize_angles", "1", "Normalize angles", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+	g_cvWarnAirStuck = CreateConVar("sm_essentials_airstuck_warn", "0", "Warn players about air stuck", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+
+	g_cvBlockFakeDuck = CreateConVar("sm_essentials_fd", "0", "Stop people from using fake-duck.", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+	g_cvBlockLagPeek = CreateConVar("sm_essentials_lag_peek", "0", "Block lag peek", FCVAR_PROTECTED, true, 0.0, true, 1.0);
+	g_cvNormalizeAngles = CreateConVar("sm_essentials_normalize_angles", "0", "Normalize angles", FCVAR_PROTECTED, true, 0.0, true, 1.0);
 	g_cvMaxLatency = CreateConVar("sm_essentials_max_latency", "200", "Max latency in milliseconds", FCVAR_PROTECTED, true, 100.0, true, 1000.0);
 	g_cvMaxLatencyWarnings = CreateConVar("sm_essentials_max_latency_warnings", "10", "Max latency warnings before kick", FCVAR_PROTECTED, true, 1.0, true, 100.0);
 
@@ -257,7 +273,8 @@ void CheckAX(int client)
 	int lag_comp = GetEntProp(client, Prop_Data, "m_bLagCompensation");
 	if (lag_comp == 0)
 	{
-		PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1\x08. We have forced it for you! ");
+		if (g_cvWarnAX.BoolValue)
+			PrintToChat(client, " \x09Warning! \x08You need to use \x09cl_lagcompensation 1\x08. We have forced it for you! ");
 		ChangeClientTeam(client, CS_TEAM_SPECTATOR);
 
 		char player_name[MAX_NAME_LENGTH];
@@ -332,8 +349,9 @@ bool BlockUntrustedAngles(int client, Vec3 vec, float angles[3])
 
 			if (g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES] > MAX_ANGLES_WARNING)
 			{
-				PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09untrusted angles\x08, please stop using them to avoid issues.",
-							g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES]);
+				if (g_cvWarnUntrustedAngles.BoolValue)
+					PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09untrusted angles\x08, please stop using them to avoid issues.",
+								g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES]);
 				LogMessage("Client %s has been detected using untrusted angles", player_name,
 						   g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES]);
 				g_iAngleWarnings[client][WarningType_UNTRUSTED_ANGLES] = 0;
@@ -380,8 +398,10 @@ bool BlockRollAngles(int client, Vec3 vec, float angles[3])
 
 		if (g_iAngleWarnings[client][WarningType_ROLL_ANGLES] > MAX_ANGLES_WARNING)
 		{
-			PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09roll angles\x08, please stop using them. (\x09%i°\x08)",
-						g_iAngleWarnings[client][WarningType_ROLL_ANGLES], RoundToNearest(bk));
+			if (g_cvWarnRollAngles.BoolValue)
+				PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09roll angles\x08, please stop using them. (\x09%i°\x08)",
+							g_iAngleWarnings[client][WarningType_ROLL_ANGLES], RoundToNearest(bk));
+
 			LogMessage("Client %s has been detected using roll angles (%i°)",
 					   player_name, RoundToNearest(bk), g_iAngleWarnings[client][WarningType_ROLL_ANGLES]);
 			g_iAngleWarnings[client][WarningType_ROLL_ANGLES] = 0;
@@ -408,7 +428,8 @@ bool BlockAirStuck(int client, Vec3 vel, int &buttons, int tickcount)
 	char player_name[MAX_NAME_LENGTH];
 	GetClientName(client, player_name, sizeof(player_name));
 
-	PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09air stuck\x08, you have been \x09slayed\x08.");
+	if (g_cvWarnAirStuck.BoolValue)
+		PrintToChat(client, " \x09Warning! \x08We have detected that you are using \x09air stuck\x08, you have been \x09slayed\x08.");
 	ForcePlayerSuicide(client);
 	LogMessage("Client %s has been detected using air stuck", player_name);
 
