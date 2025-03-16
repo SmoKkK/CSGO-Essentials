@@ -1,4 +1,4 @@
-# CS:GO Essentials Plugin (1.5.0)
+# CS:GO Essentials Plugin (1.8.0)
 A comprehensive server management plugin for Counter-Strike: Global Offensive.
 
 ## Features
